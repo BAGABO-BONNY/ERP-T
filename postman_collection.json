@@ -1,0 +1,569 @@
+{
+  "info": {
+    "_postman_id": "erp-system-collection-v4",
+    "name": "ERP System API v4",
+    "description": "Complete ERP System API collection.\n\n**Base URL:** http://localhost:8080\n**Swagger UI:** http://localhost:8080/swagger-ui.html\n**API Docs:** http://localhost:8080/v3/api-docs\n\n**Roles:**\n- ADMIN    → approve payroll, manage deduction types, manage employees\n- MANAGER  → process payroll, manage employees, view all payslips\n- EMPLOYEE → view own payslips only\n\n**Seeded accounts:**\n- admin / Admin@2026!\n- manager / Manager@2026!\n\n**Setup:** Run 'Login - Admin' or 'Login - Manager' first to populate {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",          "value": "http://localhost:8080", "type": "string" },
+    { "key": "token",             "value": "",                      "type": "string" },
+    { "key": "username",          "value": "",                      "type": "string" },
+    { "key": "employee_id",       "value": "",                      "type": "string" },
+    { "key": "payslip_id",        "value": "",                      "type": "string" },
+    { "key": "deduction_type_id", "value": "",                      "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "1. Authentication",
+      "description": "Public login/register endpoints. No token required.",
+      "item": [
+        {
+          "name": "Register Employee (public)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201 Created', () => pm.response.to.have.status(201));","pm.test('Role is EMPLOYEE', () => pm.expect(pm.response.json().data.role).to.equal('EMPLOYEE'));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"john.doe\",\n  \"email\": \"john.doe@erp.com\",\n  \"password\": \"SecurePass123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phoneNumber\": \"+1-555-0101\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/register","host":["{{base_url}}"],"path":["api","auth","register"]},
+            "description": "Creates an EMPLOYEE account. Role is always EMPLOYEE."
+          }
+        },
+        {
+          "name": "Login - Admin",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","if (pm.response.code === 200) { const d = pm.response.json().data; pm.collectionVariables.set('token', d.token); pm.collectionVariables.set('username', d.username); console.log('Admin token saved'); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"admin\",\n  \"password\": \"Admin@2026!\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/login","host":["{{base_url}}"],"path":["api","auth","login"]},
+            "description": "Login with seeded ADMIN account. Saves JWT to {{token}}."
+          }
+        },
+        {
+          "name": "Login - Manager",
+          "event": [{"listen":"test","script":{"exec":["if (pm.response.code === 200) { const d = pm.response.json().data; pm.collectionVariables.set('token', d.token); pm.collectionVariables.set('username', d.username); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"manager\",\n  \"password\": \"Manager@2026!\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/login","host":["{{base_url}}"],"path":["api","auth","login"]},
+            "description": "Login with seeded MANAGER account. Saves JWT to {{token}}."
+          }
+        },
+        {
+          "name": "Login - Employee",
+          "event": [{"listen":"test","script":{"exec":["if (pm.response.code === 200) { const d = pm.response.json().data; pm.collectionVariables.set('token', d.token); pm.collectionVariables.set('username', d.username); }"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"john.doe\",\n  \"password\": \"SecurePass123\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/login","host":["{{base_url}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Get Current User (/me)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Has role', () => pm.expect(pm.response.json().data).to.have.property('role'));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/auth/me","host":["{{base_url}}"],"path":["api","auth","me"]},
+            "description": "Returns the authenticated user's profile."
+          }
+        },
+        {
+          "name": "Validate Token",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('valid=true', () => pm.expect(pm.response.json().data.valid).to.be.true);"]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer {{token}}"}],
+            "url": {"raw":"{{base_url}}/api/auth/validate-token","host":["{{base_url}}"],"path":["api","auth","validate-token"]}
+          }
+        },
+        {
+          "name": "Login - Wrong Password (expect 401)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"admin\",\n  \"password\": \"WrongPassword\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/login","host":["{{base_url}}"],"path":["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Register - Validation Error (expect 400)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 Bad Request', () => pm.response.to.have.status(400));","pm.test('Has field errors', () => { const d = pm.response.json(); pm.expect(d.data).to.be.an('object'); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"username\": \"x\",\n  \"email\": \"not-an-email\",\n  \"password\": \"123\",\n  \"firstName\": \"\",\n  \"lastName\": \"\"\n}"},
+            "url": {"raw":"{{base_url}}/api/auth/register","host":["{{base_url}}"],"path":["api","auth","register"]},
+            "description": "Triggers bean validation errors. Response data contains a map of { fieldName: errorMessage }."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Employee Management",
+      "description": "CRUD for employees. MANAGER can create/read. ADMIN can also update/delete/reactivate.",
+      "item": [
+        {
+          "name": "Create Employee (MANAGER/ADMIN)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201 Created', () => pm.response.to.have.status(201));","if (pm.response.code === 201) { pm.collectionVariables.set('employee_id', pm.response.json().data.id); console.log('employee_id saved:', pm.response.json().data.id); }"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"employeeIdNumber\": \"EMP-001\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"email\": \"alice.smith@erp.com\",\n  \"phoneNumber\": \"+1-555-0201\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"gender\": \"Female\",\n  \"nationality\": \"American\",\n  \"jobTitle\": \"Software Engineer\",\n  \"department\": \"Engineering\",\n  \"positionLevel\": \"Mid\",\n  \"employmentType\": \"Full-time\",\n  \"employmentStatus\": \"Active\",\n  \"hireDate\": \"2024-01-15\",\n  \"baseSalary\": 75000.00,\n  \"currency\": \"USD\",\n  \"payFrequency\": \"Monthly\",\n  \"annualLeaveDays\": 21,\n  \"sickLeaveDays\": 10,\n  \"username\": \"alice.smith\",\n  \"password\": \"AlicePass123\"\n}"},
+            "url": {"raw":"{{base_url}}/api/employees","host":["{{base_url}}"],"path":["api","employees"]},
+            "description": "Creates employee + optional linked EMPLOYEE user account."
+          }
+        },
+        {
+          "name": "Get All Employees",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Array', () => pm.expect(pm.response.json().data).to.be.an('array'));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees","host":["{{base_url}}"],"path":["api","employees"]}
+          }
+        },
+        {
+          "name": "Get Employee by ID",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/{{employee_id}}","host":["{{base_url}}"],"path":["api","employees","{{employee_id}}"]}
+          }
+        },
+        {
+          "name": "Get Employee by ID Number",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/by-id-number/EMP-001","host":["{{base_url}}"],"path":["api","employees","by-id-number","EMP-001"]}
+          }
+        },
+        {
+          "name": "Search Employees",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/search?q=alice","host":["{{base_url}}"],"path":["api","employees","search"],"query":[{"key":"q","value":"alice"}]}
+          }
+        },
+        {
+          "name": "Get Employees by Department",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/department/Engineering","host":["{{base_url}}"],"path":["api","employees","department","Engineering"]}
+          }
+        },
+        {
+          "name": "Count Active Employees",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/count","host":["{{base_url}}"],"path":["api","employees","count"]}
+          }
+        },
+        {
+          "name": "Update Employee (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"employeeIdNumber\": \"EMP-001\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"email\": \"alice.smith@erp.com\",\n  \"jobTitle\": \"Senior Software Engineer\",\n  \"department\": \"Engineering\",\n  \"positionLevel\": \"Senior\",\n  \"employmentType\": \"Full-time\",\n  \"employmentStatus\": \"Active\",\n  \"hireDate\": \"2024-01-15\",\n  \"baseSalary\": 90000.00,\n  \"currency\": \"USD\",\n  \"payFrequency\": \"Monthly\"\n}"},
+            "url": {"raw":"{{base_url}}/api/employees/{{employee_id}}","host":["{{base_url}}"],"path":["api","employees","{{employee_id}}"]}
+          }
+        },
+        {
+          "name": "Deactivate Employee (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "DELETE",
+            "url": {"raw":"{{base_url}}/api/employees/{{employee_id}}","host":["{{base_url}}"],"path":["api","employees","{{employee_id}}"]}
+          }
+        },
+        {
+          "name": "Reactivate Employee (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "PATCH",
+            "url": {"raw":"{{base_url}}/api/employees/{{employee_id}}/reactivate","host":["{{base_url}}"],"path":["api","employees","{{employee_id}}","reactivate"]}
+          }
+        },
+        {
+          "name": "Create Employee - Validation Error (expect 400)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 Bad Request', () => pm.response.to.have.status(400));","pm.test('Field errors map', () => pm.expect(pm.response.json().data).to.be.an('object'));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"employeeIdNumber\": \"\",\n  \"firstName\": \"\",\n  \"lastName\": \"\",\n  \"email\": \"not-valid\",\n  \"jobTitle\": \"\",\n  \"department\": \"\",\n  \"employmentType\": \"\",\n  \"employmentStatus\": \"\",\n  \"hireDate\": null,\n  \"baseSalary\": -1,\n  \"currency\": \"\",\n  \"payFrequency\": \"\"\n}"},
+            "url": {"raw":"{{base_url}}/api/employees","host":["{{base_url}}"],"path":["api","employees"]},
+            "description": "Triggers multiple bean validation errors. Response.data is a { fieldName: errorMessage } map."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Deduction Types",
+      "description": "System-wide deduction/allowance rates.\nDefault rates seeded at startup:\n  EmployeeTax 30%, Pension 6%, MedicalInsurance 5%, Others 5% (deductions)\n  House 14%, Transport 14% (allowances added to gross salary)",
+      "item": [
+        {
+          "name": "Get All Active Deduction Types",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Array', () => pm.expect(pm.response.json().data).to.be.an('array'));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/deduction-types","host":["{{base_url}}"],"path":["api","deduction-types"]},
+            "description": "Returns all active deduction types. MANAGER or ADMIN token required."
+          }
+        },
+        {
+          "name": "Get All Deduction Types incl. Inactive (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/deduction-types/all","host":["{{base_url}}"],"path":["api","deduction-types","all"]}
+          }
+        },
+        {
+          "name": "Get Allowance Types (House, Transport)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/deduction-types/allowances","host":["{{base_url}}"],"path":["api","deduction-types","allowances"]},
+            "description": "Returns only allowance types (isAllowance=true). These are added to gross salary."
+          }
+        },
+        {
+          "name": "Get Deduction Types Only",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/deduction-types/deductions","host":["{{base_url}}"],"path":["api","deduction-types","deductions"]},
+            "description": "Returns only deduction types (isAllowance=false). These are subtracted from gross salary."
+          }
+        },
+        {
+          "name": "Get Deduction Type by ID",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/deduction-types/{{deduction_type_id}}","host":["{{base_url}}"],"path":["api","deduction-types","{{deduction_type_id}}"]}
+          }
+        },
+        {
+          "name": "Create Deduction Type (ADMIN)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201 Created', () => pm.response.to.have.status(201));","if (pm.response.code === 201) { pm.collectionVariables.set('deduction_type_id', pm.response.json().data.id); }"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"typeName\": \"UnionFee\",\n  \"displayName\": \"Union Fee\",\n  \"percentage\": 2.00,\n  \"isAllowance\": false,\n  \"description\": \"Monthly union membership fee\"\n}"},
+            "url": {"raw":"{{base_url}}/api/deduction-types","host":["{{base_url}}"],"path":["api","deduction-types"]}
+          }
+        },
+        {
+          "name": "Update Deduction Type (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "PUT",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"typeName\": \"UnionFee\",\n  \"displayName\": \"Union Fee\",\n  \"percentage\": 2.50,\n  \"isAllowance\": false,\n  \"description\": \"Updated union membership fee\"\n}"},
+            "url": {"raw":"{{base_url}}/api/deduction-types/{{deduction_type_id}}","host":["{{base_url}}"],"path":["api","deduction-types","{{deduction_type_id}}"]}
+          }
+        },
+        {
+          "name": "Deactivate Deduction Type (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "PATCH",
+            "url": {"raw":"{{base_url}}/api/deduction-types/{{deduction_type_id}}/deactivate","host":["{{base_url}}"],"path":["api","deduction-types","{{deduction_type_id}}","deactivate"]}
+          }
+        },
+        {
+          "name": "Activate Deduction Type (ADMIN)",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "PATCH",
+            "url": {"raw":"{{base_url}}/api/deduction-types/{{deduction_type_id}}/activate","host":["{{base_url}}"],"path":["api","deduction-types","{{deduction_type_id}}","activate"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. Payroll Processing (MANAGER/ADMIN)",
+      "description": "Process monthly payroll for all active employees.\n\nCalculation per employee:\n  grossSalary = baseSalary + housingAllowance(14%) + transportAllowance(14%) + mealAllowance + otherAllowance\n  deductions  = EmployeeTax(30%) + Pension(6%) + MedicalInsurance(5%) + Others(5%) of baseSalary\n  netSalary   = grossSalary - totalDeductions\n  Deductions capped at baseSalary if exceeded.\n\nPayslips saved with status PENDING.\nDuplicate detection: 400 if payslip already exists for same employee+month.",
+      "item": [
+        {
+          "name": "Process Payroll - All Employees",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Has payrollMonth', () => pm.expect(pm.response.json().data.payrollMonth).to.be.a('string'));","if (pm.response.code === 200) { const slips = pm.response.json().data.payslips; if (slips && slips.length > 0) { pm.collectionVariables.set('payslip_id', slips[0].id); console.log('payslip_id saved:', slips[0].id); } }"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"year\": 2025,\n  \"month\": 5\n}"},
+            "url": {"raw":"{{base_url}}/api/manager/payroll/process","host":["{{base_url}}"],"path":["api","manager","payroll","process"]},
+            "description": "Processes payroll for ALL active employees for May 2025.\nReturns PayrollResult: totalProcessed, totalFailed, totalGrossSalary, totalDeductions, totalNetSalary, payslips[], errors[]."
+          }
+        },
+        {
+          "name": "Process Payroll - Single Employee",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"year\": 2025,\n  \"month\": 5,\n  \"employeeId\": {{employee_id}}\n}"},
+            "url": {"raw":"{{base_url}}/api/manager/payroll/process","host":["{{base_url}}"],"path":["api","manager","payroll","process"]},
+            "description": "Processes payroll for a single employee only."
+          }
+        },
+        {
+          "name": "Process Payroll - Future Month (expect 400)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 Bad Request for future month', () => pm.response.to.have.status(400));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"year\": 2099,\n  \"month\": 12\n}"},
+            "url": {"raw":"{{base_url}}/api/manager/payroll/process","host":["{{base_url}}"],"path":["api","manager","payroll","process"]}
+          }
+        },
+        {
+          "name": "Process Payroll - Duplicate (expect errors in result)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK with errors', () => { const r = pm.response.json(); pm.expect(r.code).to.equal(200); pm.expect(r.data.errors.length).to.be.greaterThan(0); });"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{\n  \"year\": 2025,\n  \"month\": 5\n}"},
+            "url": {"raw":"{{base_url}}/api/manager/payroll/process","host":["{{base_url}}"],"path":["api","manager","payroll","process"]},
+            "description": "Run AFTER 'Process Payroll - All Employees' for the same month. Each employee already processed appears in errors[]."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5. Payslips",
+      "description": "View payslips with role-based access.\n  EMPLOYEE → own payslips only (403 for others)\n  MANAGER/ADMIN → all payslips\n\nPayslip includes full salary breakdown:\n  basicSalary, housingAllowance, transportAllowance, mealAllowance, bonus, otherEarnings, grossSalary\n  incomeTax (EmployeeTax 30%), socialSecurity (Pension 6%), healthInsurance (MedicalInsurance 5%), otherDeductions (Others 5%)\n  totalDeductions, netSalary, currency, paymentStatus (Pending/Paid), isFinalized",
+      "item": [
+        {
+          "name": "EMPLOYEE: Get My Payslips",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","if (pm.response.code === 200 && pm.response.json().data.length > 0) { pm.collectionVariables.set('payslip_id', pm.response.json().data[0].id); }"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employee/payslips","host":["{{base_url}}"],"path":["api","employee","payslips"]},
+            "description": "Returns all payslips for the authenticated user's employee record. Works for EMPLOYEE, MANAGER, ADMIN."
+          }
+        },
+        {
+          "name": "Get Single Payslip by ID",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Has netSalary', () => pm.expect(pm.response.json().data).to.have.property('netSalary'));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/payslips/{{payslip_id}}","host":["{{base_url}}"],"path":["api","payslips","{{payslip_id}}"]},
+            "description": "EMPLOYEE: 403 if payslip belongs to another employee.\nMANAGER/ADMIN: can access any payslip."
+          }
+        },
+        {
+          "name": "MANAGER: Get All Payslips",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/manager/payslips","host":["{{base_url}}"],"path":["api","manager","payslips"]}
+          }
+        },
+        {
+          "name": "MANAGER: Get Payslips by Month",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/manager/payslips/month/2025-05","host":["{{base_url}}"],"path":["api","manager","payslips","month","2025-05"]},
+            "description": "Filter payslips by payroll month (YYYY-MM). MANAGER or ADMIN token required."
+          }
+        },
+        {
+          "name": "MANAGER: Get Payslips by Employee",
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/manager/payslips/employee/{{employee_id}}","host":["{{base_url}}"],"path":["api","manager","payslips","employee","{{employee_id}}"]}
+          }
+        },
+        {
+          "name": "EMPLOYEE: Access Other Payslip (expect 403)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/payslips/1","host":["{{base_url}}"],"path":["api","payslips","1"]},
+            "description": "Run with an EMPLOYEE token for a payslip that belongs to a different employee. Should return 403."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "6. Payroll Approval (ADMIN only)",
+      "description": "ADMIN approves payroll for a given month.\n\nWorkflow:\n  1. MANAGER runs 'Process Payroll' → payslips created with status PENDING\n  2. MANAGER reviews via 'Get Payslips by Month'\n  3. ADMIN calls 'Approve Payroll' → all PENDING payslips become PAID\n     → isFinalized=true, paymentDate=today\n     → salary credit Message inserted into messages table\n     → salary credit email sent to each employee\n\nResponse: { payrollMonth, totalPayslips, newlyApproved, alreadyPaid, approvalDate }",
+      "item": [
+        {
+          "name": "Approve Payroll for Month (ADMIN)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Has approval summary', () => { const d = pm.response.json().data; pm.expect(d).to.have.property('newlyApproved'); pm.expect(d).to.have.property('payrollMonth'); pm.expect(d).to.have.property('approvalDate'); });"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/payroll/approve?year=2025&month=5",
+              "host": ["{{base_url}}"],
+              "path": ["api","admin","payroll","approve"],
+              "query": [{"key":"year","value":"2025"},{"key":"month","value":"5"}]
+            },
+            "description": "Approves all PENDING payslips for May 2025.\nSets paymentStatus=Paid, isFinalized=true, paymentDate=today.\nSends salary credit notification (Message + email) to each employee.\nAlready-paid payslips are skipped.\nRequires ADMIN token."
+          }
+        },
+        {
+          "name": "Approve Payroll - No Payslips (expect 404)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404 Not Found', () => pm.response.to.have.status(404));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/payroll/approve?year=2020&month=1",
+              "host": ["{{base_url}}"],
+              "path": ["api","admin","payroll","approve"],
+              "query": [{"key":"year","value":"2020"},{"key":"month","value":"1"}]
+            }
+          }
+        },
+        {
+          "name": "Approve Payroll - Manager Token (expect 403)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('403 Forbidden for non-admin', () => pm.response.to.have.status(403));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/payroll/approve?year=2025&month=5",
+              "host": ["{{base_url}}"],
+              "path": ["api","admin","payroll","approve"],
+              "query": [{"key":"year","value":"2025"},{"key":"month","value":"5"}]
+            },
+            "description": "Run with a MANAGER token. Should return 403 — only ADMIN can approve payroll."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "7. Error & Edge Cases",
+      "description": "Negative tests to verify the global exception handler returns correct HTTP codes and structured error responses.",
+      "item": [
+        {
+          "name": "No Token (expect 401)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]}}],
+          "request": {
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/auth/me","host":["{{base_url}}"],"path":["api","auth","me"]}
+          }
+        },
+        {
+          "name": "Invalid Token (expect 401)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key":"Authorization","value":"Bearer this.is.not.valid"}],
+            "url": {"raw":"{{base_url}}/api/auth/me","host":["{{base_url}}"],"path":["api","auth","me"]}
+          }
+        },
+        {
+          "name": "Employee Accessing Admin Endpoint (expect 403)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/payroll/approve?year=2025&month=5",
+              "host": ["{{base_url}}"],
+              "path": ["api","admin","payroll","approve"],
+              "query": [{"key":"year","value":"2025"},{"key":"month","value":"5"}]
+            },
+            "description": "Run with an EMPLOYEE token. Should return 403."
+          }
+        },
+        {
+          "name": "Get Non-Existent Employee (expect 404)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404 Not Found', () => pm.response.to.have.status(404));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/999999","host":["{{base_url}}"],"path":["api","employees","999999"]}
+          }
+        },
+        {
+          "name": "Invalid Path Variable Type (expect 400)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/api/employees/not-a-number","host":["{{base_url}}"],"path":["api","employees","not-a-number"]},
+            "description": "Passing a string where a Long is expected triggers MethodArgumentTypeMismatchException → 400."
+          }
+        },
+        {
+          "name": "Malformed JSON Body (expect 400)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"]}}],
+          "request": {
+            "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+            "method": "POST",
+            "header": [{"key":"Content-Type","value":"application/json"}],
+            "body": {"mode":"raw","raw":"{ this is not valid json }"},
+            "url": {"raw":"{{base_url}}/api/manager/payroll/process","host":["{{base_url}}"],"path":["api","manager","payroll","process"]}
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "8. Health & Swagger",
+      "item": [
+        {
+          "name": "Health Check (public)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Running', () => pm.expect(pm.response.text()).to.include('running'));"]}}],
+          "request": {
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/health","host":["{{base_url}}"],"path":["health"]}
+          }
+        },
+        {
+          "name": "Swagger UI (browser link)",
+          "request": {
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/swagger-ui.html","host":["{{base_url}}"],"path":["swagger-ui.html"]},
+            "description": "Open in browser: http://localhost:8080/swagger-ui.html\nClick Authorize and enter: Bearer <your-token>"
+          }
+        },
+        {
+          "name": "OpenAPI JSON Spec",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 OK', () => pm.response.to.have.status(200));","pm.test('Has openapi field', () => pm.expect(pm.response.json()).to.have.property('openapi'));"]}}],
+          "request": {
+            "method": "GET",
+            "url": {"raw":"{{base_url}}/v3/api-docs","host":["{{base_url}}"],"path":["v3","api-docs"]},
+            "description": "Returns the full OpenAPI 3.0 JSON specification."
+          }
+        }
+      ]
+    }
+
+  ]
+}
