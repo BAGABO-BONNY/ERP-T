@@ -124,16 +124,6 @@ public class Employee extends BaseEntity {
     @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Deduction> deductions;
 
-    // One-to-Many relationship with Message (as receiver)
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "receiver_id")
-    private List<Message> receivedMessages;
-
-    // One-to-Many relationship with Message (as sender)
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "sender_id")
-    private List<Message> sentMessages;
-
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

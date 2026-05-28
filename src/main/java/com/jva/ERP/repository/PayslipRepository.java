@@ -63,7 +63,7 @@ public interface PayslipRepository extends JpaRepository<Payslip, Long> {
     /**
      * Find unpaid payslips for an employee
      */
-    @Query("SELECT p FROM Payslip p WHERE p.employee.id = :employeeId AND p.paymentStatus != 'Paid' ORDER BY p.payrollPeriodStart DESC")
+    @Query("SELECT p FROM Payslip p WHERE p.employee.id = :employeeId AND p.paymentStatus != 'PAID' ORDER BY p.payrollPeriodStart DESC")
     List<Payslip> findUnpaidPayslips(@Param("employeeId") Long employeeId);
 
     /**

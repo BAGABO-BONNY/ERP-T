@@ -57,7 +57,7 @@ import java.util.stream.Collectors;
  *    Example: baseSalary=70,000 → deductions=32,200 → net=37,800
  *             grossSalary=89,600 (shown on payslip for reference only)
  *
- * 7. Payslip is saved with status "Pending".
+ * 7. Payslip is saved with status "PENDING".
  *    Duplicate payslip detection: a BusinessException is thrown if a payslip
  *    already exists for the same employee+payrollMonth to prevent duplicates.
  */
@@ -169,8 +169,9 @@ public class PayrollService {
     }
 
     /**
-     * Mark a payslip as Paid and finalized.
-     * Also sends a salary credit notification (Message + email) to the employee.
+     * Mark a payslip as PAID and finalized.
+     * The DB trigger fn_payslip_paid_notification fires on the UPDATE
+     * and inserts the salary-credit message into the messages table.
      */
     public PayslipResponse finalizePayslip(Long id) {
         Payslip payslip = payslipRepository.findById(id)
@@ -178,13 +179,10 @@ public class PayrollService {
         if (payslip.getIsFinalized()) {
             throw new BusinessException("Payslip " + payslip.getPayslipNumber() + " is already finalized");
         }
-        payslip.setPaymentStatus("Paid");
+        payslip.setPaymentStatus("PAID");
         payslip.setIsFinalized(true);
         payslip.setPaymentDate(LocalDate.now());
-        Payslip saved = payslipRepository.save(payslip);
-        // Notify employee — runs in its own transaction so failure never rolls back this one
-        notificationService.notifyPayslipApproved(saved);
-        return toResponse(saved);
+        return toResponse(payslipRepository.save(payslip));
     }
 
     // ── Core calculation ──────────────────────────────────────────────────────
@@ -281,7 +279,7 @@ public class PayrollService {
         payslip.setTotalDeductions(totalDeductions);
         payslip.setNetSalary(netSalary);
         payslip.setCurrency(employment.getCurrency());
-        payslip.setPaymentStatus("Pending");
+        payslip.setPaymentStatus("PENDING");
         payslip.setIsFinalized(false);
 
         Payslip saved = payslipRepository.save(payslip);

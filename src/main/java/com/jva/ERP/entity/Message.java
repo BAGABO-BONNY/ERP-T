@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "messages")
 public class Message extends BaseEntity {
 
-    @Column(name = "sender_id", nullable = false)
+    @Column(name = "sender_id")          // nullable — NULL means system-generated message
     private Long senderId;
 
     @Column(name = "sender_name", nullable = false, length = 100)

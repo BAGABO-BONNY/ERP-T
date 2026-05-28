@@ -1,8 +1,12 @@
 package com.jva.ERP.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jva.ERP.dto.ApiResponse;
 import com.jva.ERP.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -16,18 +20,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * SecurityConfig — stateless JWT security configuration.
+ * SecurityConfig — stateless JWT security.
  *
- * Role-based URL access:
- *   /api/auth/**          → public
- *   /health, /swagger-ui/**, /v3/api-docs/** → public
- *   /api/employees/**     → MANAGER, ADMIN
- *   /api/admin/**         → ADMIN only
- *   /api/manager/**       → MANAGER, ADMIN
- *   /api/employee/**      → EMPLOYEE, MANAGER, ADMIN
- *   everything else       → authenticated
- *
- * Fine-grained method-level control is applied via @PreAuthorize on each endpoint.
+ * Key design decisions:
+ * - No redirect to /error on 401/403 — JSON is returned directly via custom entry points.
+ *   This eliminates the /error → 403 loop entirely.
+ * - All Swagger/OpenAPI paths are permitted without a token.
+ * - JwtAuthenticationFilter.shouldNotFilter() also skips public paths at the filter level.
  */
 @Configuration
 @EnableWebSecurity
@@ -36,11 +35,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final ObjectMapper objectMapper;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          CustomUserDetailsService customUserDetailsService) {
+                          CustomUserDetailsService customUserDetailsService,
+                          ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customUserDetailsService = customUserDetailsService;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -48,10 +50,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(10);
     }
 
-    /**
-     * Explicit DaoAuthenticationProvider wired with our UserDetailsService and encoder.
-     * Declaring this bean explicitly suppresses the Spring Boot auto-config warning.
-     */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -72,6 +70,25 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // ── Return JSON on 401/403 — never redirect to /error ─────────────
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write(objectMapper.writeValueAsString(
+                        new ApiResponse<>(401, "Unauthorized: " + authException.getMessage(), null)
+                    ));
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write(objectMapper.writeValueAsString(
+                        new ApiResponse<>(403, "Access denied: insufficient role", null)
+                    ));
+                })
+            )
+
             .authorizeHttpRequests(authz -> authz
                 // ── Public — no token required ────────────────────────────────
                 .requestMatchers(
