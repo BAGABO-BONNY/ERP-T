@@ -31,3 +31,37 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# =============================================================================
+# SENSITIVE FILES — never commit these
+# =============================================================================
+
+# Real application config with DB password, JWT secret, email credentials
+src/main/resources/application.properties
+src/main/resources/application-prod.properties
+src/main/resources/application-staging.properties
+
+# Allow the safe template (no real secrets) to be committed
+!src/main/resources/application.properties.template
+
+# Environment variable files
+.env
+.env.*
+!.env.example
+
+# Any local override properties
+src/main/resources/application-local.properties
+src/main/resources/application-dev.properties
+
+# Compiled output and logs
+*.log
+logs/
+*.log.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Postman environments (may contain tokens/credentials)
+*postman_environment*.json
+*postman_globals*.json

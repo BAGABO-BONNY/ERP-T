@@ -1,0 +1,86 @@
+spring.application.name=ERP
+
+# ============= Spring Boot Application =============
+server.port=8080
+
+# ============= Seed Credentials (ADMIN & MANAGER) =============
+# These accounts are created automatically at startup.
+# Change all values before deploying to any shared environment.
+app.seed.admin.username=admin
+app.seed.admin.email=admin@erp.local
+app.seed.admin.password=CHANGE_ME_ADMIN_PASSWORD
+app.seed.admin.firstName=System
+app.seed.admin.lastName=Admin
+
+app.seed.manager.username=manager
+app.seed.manager.email=manager@erp.local
+app.seed.manager.password=CHANGE_ME_MANAGER_PASSWORD
+app.seed.manager.firstName=System
+app.seed.manager.lastName=Manager
+
+# ============= PostgreSQL Database Configuration =============
+spring.datasource.url=jdbc:postgresql://localhost:5432/erp_db
+spring.datasource.username=postgres
+spring.datasource.password=CHANGE_ME_DB_PASSWORD
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# ============= JPA/Hibernate Configuration =============
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.open-in-view=false
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.use_sql_comments=true
+spring.jpa.properties.hibernate.jdbc.batch_size=10
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true
+spring.jpa.properties.hibernate.jdbc.fetch_size=50
+
+# ============= Connection Pool =============
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=20000
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.max-lifetime=1200000
+
+# ============= JWT Configuration =============
+# Must be at least 32 characters (256 bits) for HS256/HS512.
+# Generate a strong random value: openssl rand -base64 64
+app.jwt.secret=CHANGE_ME_JWT_SECRET_MIN_32_CHARS
+app.jwt.expiration=86400000
+app.jwt.refresh-expiration=604800000
+
+# ============= Logging =============
+logging.level.root=INFO
+logging.level.com.jva.ERP=DEBUG
+logging.level.org.springframework.security=INFO
+logging.level.org.hibernate.SQL=WARN
+
+# ============= OpenAPI / Swagger =============
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.enabled=true
+springdoc.swagger-ui.disable-swagger-default-url=true
+
+# ============= Spring MVC =============
+spring.mvc.throw-exception-if-no-handler-found=false
+
+# ============= Jackson =============
+spring.jackson.serialization.indent-output=true
+spring.jackson.serialization.write-dates-as-timestamps=false
+spring.jackson.time-zone=UTC
+
+# ============= Email / SMTP (Gmail) =============
+# How to get an App Password:
+#   Google Account → Security → 2-Step Verification → App Passwords
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=CHANGE_ME_GMAIL_ADDRESS
+spring.mail.password=CHANGE_ME_GMAIL_APP_PASSWORD
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+spring.mail.properties.mail.smtp.connectiontimeout=5000
+spring.mail.properties.mail.smtp.timeout=5000
+spring.mail.properties.mail.smtp.writetimeout=5000
+app.mail.institution-name=ERP Payroll System
+app.mail.sender-name=ERP Payroll
+app.mail.enabled=false
